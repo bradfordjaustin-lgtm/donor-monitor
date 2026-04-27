@@ -23,14 +23,19 @@ jobs:
       - name: Install dependencies
         run: pip install requests beautifulsoup4
 
-      - name: Restore last state
-        run: |
-          if git show HEAD:last_state.txt > last_state.txt 2>/dev/null; then
-            echo "Restored last_state.txt from repo"
-          else
-            echo "unknown" > last_state.txt
-            echo "No previous state found, starting fresh"
-          fi
+      # ── Primary state persistence: restore from repo ─────────────────────
+      # The previous run committed last_state.json back to the repo.
+      # This checkout already has it; no extra step needed.
+
+      # ── Fallback state persistence: Actions cache ─────────────────────────
+      # If the repo commit hasn't landed yet (e.g. race condition between
+      # two simultaneous runs), the cache gives us the most recent state.
+      - name: Restore state cache (fallback)
+        uses: actions/cache@v4
+        with:
+          path: last_state.json
+          key: donor-state-${{ github.run_id }}
+          restore-keys: donor-state-
 
       - name: Run monitor
         env:
@@ -39,10 +44,15 @@ jobs:
           NOTIFY_EMAIL: ${{ secrets.NOTIFY_EMAIL }}
         run: python monitor.py
 
-      - name: Save state back to repo
+      # ── Save state back to repo (primary) ────────────────────────────────
+      - name: Commit state file to repo
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add last_state.txt
-          git diff --staged --quiet || git commit -m "Update last_state.txt [skip ci]"
+          git add last_state.json
+          git diff --staged --quiet || git commit -m "chore: update last_state.json [skip ci]"
           git push
+
+      # ── Save state to cache (fallback) ───────────────────────────────────
+      # The cache action auto-saves at job end due to the restore-keys match above.
+      # No explicit save step needed; actions/cache handles it automatically.
