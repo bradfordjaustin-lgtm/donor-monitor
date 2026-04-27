@@ -1,0 +1,48 @@
+name: Donor Vial Monitor
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'   # every 5 minutes
+  workflow_dispatch:         # allows manual run from GitHub
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4
+
+      - name: Restore last state
+        run: |
+          if git show HEAD:last_state.txt > last_state.txt 2>/dev/null; then
+            echo "Restored last_state.txt from repo"
+          else
+            echo "unknown" > last_state.txt
+            echo "No previous state found, starting fresh"
+          fi
+
+      - name: Run monitor
+        env:
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          NOTIFY_EMAIL: ${{ secrets.NOTIFY_EMAIL }}
+        run: python monitor.py
+
+      - name: Save state back to repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add last_state.txt
+          git diff --staged --quiet || git commit -m "Update last_state.txt [skip ci]"
+          git push
