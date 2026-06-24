@@ -1,14 +1,9 @@
 {
   "vials": [
     {
-      "name": "IUI Premium",
-      "price": "$2,095",
-      "status": "ALMOST GONE | Please Call"
-    },
-    {
       "name": "IUI ART Recommended",
       "price": "$1,795",
-      "status": "Add to Cart | Qty up to 8"
+      "status": "Add to Cart | Qty up to 6"
     }
   ]
 }
